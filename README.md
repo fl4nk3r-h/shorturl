@@ -18,8 +18,9 @@ justified by requirements or measured performance, never by habit.
   - [Project Structure](#project-structure)
   - [Getting Started](#getting-started)
     - [Prerequisites](#prerequisites)
-    - [Build](#build)
+    - [First-time setup](#first-time-setup)
     - [Run](#run)
+    - [Running without Docker (optional)](#running-without-docker-optional)
   - [Configuration](#configuration)
   - [API](#api)
   - [Roadmap](#roadmap)
@@ -51,7 +52,7 @@ Guiding decisions:
 | Cache | Redis (Upstash) |
 | Hosting | Render (Docker containers) |
 | CDN / DNS | Cloudflare (optional) |
-| Build | Maven / Gradle (wrapper) |
+| Build | Maven |
 
 ## Architecture
 
@@ -134,40 +135,62 @@ src/main/java/dev/iwowa/shortener/
 
 ## Getting Started
 
+The whole stack — app, Postgres, Redis — runs in Docker. No local JDK or
+Maven install required for this path.
+
 ### Prerequisites
 
-- JDK 21
-- Maven or Gradle (wrapper included — use `./mvnw` / `./gradlew`)
-- A PostgreSQL database (Neon or local)
-- A Redis instance (Upstash or local) — required from Phase 2 onward
+- Docker + Docker Compose
 
-### Build
+### First-time setup
 
 ```bash
-./mvnw clean package     # or ./gradlew build
+cp .env.example .env
+```
+
+Then open `.env` and set `IP_HASH_SALT` to the output of:
+
+```bash
+openssl rand -hex 16
 ```
 
 ### Run
 
 ```bash
-./mvnw spring-boot:run   # or ./gradlew bootRun
+docker compose up --build
 ```
 
-The application starts on `http://localhost:8080` by default.
+The application starts on `http://localhost:8080`. See the
+[Environment Configuration](https://github.com/fl4nk3r-h/shorturl/wiki/Environment-Configuration)
+wiki page for what each container needs and why, and the
+[Local Setup](https://github.com/fl4nk3r-h/shorturl/wiki/Local-Setup) page
+for full usage, testing, and troubleshooting instructions.
+
+### Running without Docker (optional)
+
+Requires JDK 21 and Maven installed locally, plus your own Postgres and
+Redis instances (no wrapper script is committed — install Maven yourself,
+or use the Docker path above instead):
+
+```bash
+mvn clean package
+mvn spring-boot:run -Dspring-boot.run.profiles=local
+```
 
 ## Configuration
 
-Configuration is provided via environment variables:
+Configuration is provided via environment variables. Local development uses
+`.env` (see [Environment Configuration](https://github.com/fl4nk3r-h/shorturl/wiki/Environment-Configuration));
+production (Render) sets these directly in its dashboard.
 
-| Variable | Description |
-|---|---|
-| `DATABASE_URL` | PostgreSQL JDBC connection URL |
-| `DATABASE_USERNAME` | PostgreSQL user |
-| `DATABASE_PASSWORD` | PostgreSQL password |
-| `REDIS_URL` | Redis connection string (`rediss://` for TLS) |
-| `PORT` | HTTP port (defaults to `8080`) |
-
-> Redis variables are required only from Phase 2 onward.
+| Variable | Description | Required |
+|---|---|---|
+| `DATABASE_URL` | PostgreSQL JDBC connection URL | Always |
+| `DATABASE_USERNAME` | PostgreSQL user | Always |
+| `DATABASE_PASSWORD` | PostgreSQL password | Always |
+| `IP_HASH_SALT` | Salt used to hash IPs for click analytics — never stored raw | Always |
+| `REDIS_URL` | Redis connection string (`rediss://` for TLS) | From Phase 2 onward |
+| `PORT` | HTTP port | Optional, defaults to `8080` |
 
 ## API
 
@@ -176,6 +199,9 @@ Configuration is provided via environment variables:
 | `POST` | `/urls` | Create a short URL from a target URL | `201` with the short code/link |
 | `GET` | `/{code}` | Resolve a short code | `302` redirect, or `404` if not found |
 | — | any | Rate-limited requests | `429 Too Many Requests` |
+
+> **Note:** these are the planned paths. `UrlController` is currently mapped
+> at `/api/v1/urls` — pending an update to match this table.
 
 Request and response bodies are defined by
 `url/dto/CreateUrlRequest.java` and `url/dto/CreateUrlResponse.java`.
@@ -201,7 +227,10 @@ project wiki:
 - [Home](https://github.com/fl4nk3r-h/shorturl/wiki) — overview and roadmap
 - [Architecture](https://github.com/fl4nk3r-h/shorturl/wiki/Architechture) — system design and data model
 - [Architecture Decisions](https://github.com/fl4nk3r-h/shorturl/wiki/Architecture-Decisions) — full ADR log
+- [Local Setup](https://github.com/fl4nk3r-h/shorturl/wiki/Local-Setup) — running the stack locally
+- [Environment Configuration](https://github.com/fl4nk3r-h/shorturl/wiki/Environment-Configuration) — `.env`, secrets, and how local/docker/production differ
+- [Branching Strategy](https://github.com/fl4nk3r-h/shorturl/wiki/Branching-Strategy) — `main` + `feature/*`, and why not more
 
 ## License
 
-Not yet specified.
+MIT License
